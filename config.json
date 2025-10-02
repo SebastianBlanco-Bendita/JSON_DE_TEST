@@ -22,11 +22,17 @@
     }
   },
   "configurationArguments": {
+    "save": {
+      "url": "https://deconexion-22a08197f7e5.herokuapp.com/save.php",
+      "useJWT": true
+    },
     "publish": {
-      "url": "https://deconexion-22a08197f7e5.herokuapp.com/publish.php"
+      "url": "https://deconexion-22a08197f7e5.herokuapp.com/publish.php",
+      "useJWT": true
     },
     "validate": {
-        "url": "https://deconexion-22a08197f7e5.herokuapp.com/validate.php"
+        "url": "https://deconexion-22a08197f7e5.herokuapp.com/validate.php",
+        "useJWT": true
     }
   },
   "schema": {
