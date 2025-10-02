@@ -11,12 +11,16 @@
       "description": "Selecciona una plantilla y configura sus variables dinámicas."
     }
   },
-  "arguments": {
+ "arguments": {
     "execute": {
-      "inArguments": [],
-      "url": "https://deconexion-22a08197f7e5.herokuapp.com/execute.php"
+        "inArguments": [
+            { "contactKey": "{{Contact.Key}}" },
+            { "plantillaSeleccionada": "" },
+            { "variablesConfiguradas": "" }
+        ],
+        "url": "https://deconexion-22a08197f7e5.herokuapp.com/execute.php"
     }
-  },
+},
   "configurationArguments": {
     "publish": {
       "url": "https://deconexion-22a08197f7e5.herokuapp.com/publish.php"
