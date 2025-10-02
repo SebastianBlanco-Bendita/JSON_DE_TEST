@@ -13,18 +13,16 @@
   },
   "arguments": {
     "execute": {
-      "inArguments": [
-        { "contactKey": "{{Contact.Key}}" }
-      ],
-      "url": "https://sfmc-app-node-510a6cb1f80.herokuapp.com/execute"
+      "inArguments": [],
+      "url": "https://deconexion-22a08197f7e5.herokuapp.com/execute.php"
     }
   },
   "configurationArguments": {
     "publish": {
-      "url": "https://sfmc-app-node-510a6cb1f80.herokuapp.com/publish"
+      "url": "https://deconexion-22a08197f7e5.herokuapp.com/publish.php"
     },
     "validate": {
-        "url": "https://sfmc-app-node-510a6cb1f80.herokuapp.com/validate"
+        "url": "https://deconexion-22a08197f7e5.herokuapp.com/validate.php"
     }
   },
   "schema": {
