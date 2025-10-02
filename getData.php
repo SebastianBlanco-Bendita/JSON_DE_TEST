@@ -11,14 +11,8 @@ $de_external_key = getenv('DE_EXTERNAL_KEY');
 
 /**
  * Obtiene un token de acceso de la API de SFMC.
- * Si falla, terminará la ejecución del script y devolverá un error JSON detallado.
- * * @param string $clientId El Client ID del paquete de API.
- * @param string $clientSecret El Client Secret del paquete de API.
- * @param string $subdomain El subdominio TSSD de la cuenta de SFMC.
- * @return string|null El token de acceso si tiene éxito.
  */
 function getAccessToken($clientId, $clientSecret, $subdomain) {
-    // Valida que las credenciales no estén vacías
     if (empty($clientId) || empty($clientSecret) || empty($subdomain)) {
         http_response_code(500);
         echo json_encode(['error' => 'Variables de entorno (SFMC_CLIENT_ID, SFMC_CLIENT_SECRET, SFMC_SUBDOMAIN) no están configuradas en el servidor.']);
@@ -43,7 +37,6 @@ function getAccessToken($clientId, $clientSecret, $subdomain) {
     $err = curl_error($ch);
     curl_close($ch);
 
-    // Si hubo un error a nivel de red (ej. no se pudo conectar, DNS malo, etc.)
     if ($err) {
         http_response_code(500);
         echo json_encode(['error' => 'cURL Error al contactar SFMC: ' . $err]);
@@ -52,24 +45,18 @@ function getAccessToken($clientId, $clientSecret, $subdomain) {
 
     $decoded_response = json_decode($response);
     
-    // Si la API de SFMC devolvió un error (ej. credenciales inválidas, acceso denegado)
     if (isset($decoded_response->error)) {
-         http_response_code(401); // 401 Unauthorized es más apropiado aquí
+         http_response_code(401);
          $errorMessage = isset($decoded_response->error_description) ? $decoded_response->error_description : 'Error desconocido de SFMC.';
          echo json_encode(['error' => 'SFMC Auth Error: ' . $decoded_response->error . ' - ' . $errorMessage]);
          exit();
     }
 
-    // Si todo fue exitoso, devuelve el token
     return $decoded_response->access_token ?? null;
 }
 
 /**
  * Usa un token de acceso para obtener los datos de una Data Extension.
- * * @param string $accessToken El token de acceso válido.
- * @param string $subdomain El subdominio TSSD de la cuenta de SFMC.
- * @param string $deKey La External Key de la Data Extension.
- * @return object|null Los datos decodificados de la DE.
  */
 function getDeData($accessToken, $subdomain, $deKey) {
     $de_url = "https://{$subdomain}.rest.marketingcloudapis.com/data/v1/customobjectdata/key/{$deKey}/rowset";
@@ -96,21 +83,25 @@ function getDeData($accessToken, $subdomain, $deKey) {
 
 // --- LÓGICA PRINCIPAL DEL SCRIPT ---
 
-// 1. Intentar obtener el token. La función se encargará de fallar con un error detallado si no puede.
 $accessToken = getAccessToken($sfmc_client_id, $sfmc_client_secret, $sfmc_subdomain);
-
-// 2. Si el script sigue ejecutándose, es porque obtuvimos un token. Ahora consultamos la DE.
 $data = getDeData($accessToken, $sfmc_subdomain, $de_external_key);
 
-// 3. Verificar que la respuesta de la DE sea válida y contenga la propiedad 'items'.
+// --- CAMBIO IMPORTANTE AQUÍ ---
+// Si la respuesta no es la esperada, en lugar de un mensaje genérico,
+// ahora devolveremos la respuesta COMPLETA que nos dio Marketing Cloud.
 if (!$data || !isset($data->items)) {
     http_response_code(500);
-    $errorMessage = isset($data->message) ? $data->message : 'La respuesta de la DE no contiene un array de items. Verifique la External Key.';
-    echo json_encode(['error' => 'Error al leer la Data Extension: ' . $errorMessage]);
+    
+    // Convertimos la respuesta de SFMC (que contiene el error) en un string para poder verla.
+    $fullErrorResponse = json_encode($data, JSON_PRETTY_PRINT); 
+    
+    echo json_encode([
+        'error' => 'SFMC devolvió una respuesta inesperada al consultar la DE. Respuesta completa: ' . $fullErrorResponse
+    ]);
     exit();
 }
 
-// 4. Si todo fue exitoso, devolver el array de items.
+// Si todo fue exitoso, devolver el array de items.
 echo json_encode($data->items);
 
 ?>
