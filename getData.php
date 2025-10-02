@@ -1,11 +1,22 @@
 <?php
+// Establece la cabecera para asegurar que la respuesta siempre sea de tipo JSON.
 header('Content-Type: application/json');
 
+// --- OBTENER CREDENCIALES ---
+// Lee las variables de entorno configuradas en el servidor (Heroku Config Vars).
 $sfmc_client_id = getenv('SFMC_CLIENT_ID');
 $sfmc_client_secret = getenv('SFMC_CLIENT_SECRET');
 $sfmc_subdomain = getenv('SFMC_SUBDOMAIN');
 $de_external_key = getenv('DE_EXTERNAL_KEY');
 
+/**
+ * Obtiene un token de acceso de la API de SFMC.
+ * Si falla, terminará la ejecución del script y devolverá un error JSON detallado.
+ * @param string $clientId El Client ID del paquete de API.
+ * @param string $clientSecret El Client Secret del paquete de API.
+ * @param string $subdomain El subdominio TSSD de la cuenta de SFMC.
+ * @return string|null El token de acceso si tiene éxito.
+ */
 function getAccessToken($clientId, $clientSecret, $subdomain) {
     if (empty($clientId) || empty($clientSecret) || empty($subdomain)) {
         http_response_code(500);
@@ -39,8 +50,11 @@ function getAccessToken($clientId, $clientSecret, $subdomain) {
 }
 
 /**
- * CAMBIOS IMPORTANTES EN ESTA FUNCIÓN
- * Captura el código de estado HTTP y maneja una respuesta vacía.
+ * Usa un token de acceso para obtener los datos de una Data Extension.
+ * @param string $accessToken El token de acceso válido.
+ * @param string $subdomain El subdominio TSSD de la cuenta de SFMC.
+ * @param string $deKey La External Key de la Data Extension.
+ * @return object|null Los datos decodificados de la DE.
  */
 function getDeData($accessToken, $subdomain, $deKey) {
     $de_url = "https://{$subdomain}.rest.marketingcloudapis.com/data/v1/customobjectdata/key/{$deKey}/rowset";
@@ -49,27 +63,25 @@ function getDeData($accessToken, $subdomain, $deKey) {
     curl_setopt($ch, CURLOPT_URL, $de_url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $accessToken]);
-    // Opción para forzar una versión específica de SSL/TLS si es necesario (ver explicación abajo)
-    // curl_setopt($ch, CURLOPT_SSL_VERSION, CURL_SSLVERSION_TLSv1_2);
-
+    
+    // SOLUCIÓN FINAL: Forzar el uso de TLSv1.2 para resolver problemas de conexión de red (error 596).
+    curl_setopt($ch, CURLOPT_SSL_VERSION, CURL_SSLVERSION_TLSv1_2);
 
     $response = curl_exec($ch);
     $err = curl_error($ch);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE); // Obtenemos el código de estado HTTP
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    // Si curl_exec() falla completamente, $response será 'false'.
     if ($response === false) {
         http_response_code(500);
         echo json_encode([
             'error' => 'La llamada cURL a la DE falló y no devolvió contenido.',
-            'curl_error_message' => $err, // El mensaje de error de cURL.
-            'http_status_code' => $http_code // El código de estado (probablemente 0).
+            'curl_error_message' => $err,
+            'http_status_code' => $http_code
         ]);
         exit();
     }
     
-    // Si obtenemos una respuesta pero es un código de error (4xx o 5xx)
     if ($http_code >= 400) {
         http_response_code($http_code);
         echo json_encode([
@@ -83,7 +95,7 @@ function getDeData($accessToken, $subdomain, $deKey) {
     return json_decode($response);
 }
 
-// --- LÓGICA PRINCIPAL ---
+// --- LÓGICA PRINCIPAL DEL SCRIPT ---
 
 $accessToken = getAccessToken($sfmc_client_id, $sfmc_client_secret, $sfmc_subdomain);
 $data = getDeData($accessToken, $sfmc_subdomain, $de_external_key);
@@ -97,6 +109,7 @@ if (!$data || !isset($data->items)) {
     exit();
 }
 
+// Si todo fue exitoso, devolver el array de items.
 echo json_encode($data->items);
 
 ?>
