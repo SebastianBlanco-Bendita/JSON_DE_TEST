@@ -5,32 +5,83 @@ var connection = new Postmonger.Session();
 
 // Global objects
 var payload = {};
-var deData = []; 
-var journeySchemaFields = []; 
+var deData = [];
+var journeySchemaFields = [];
 
+// Waits for the document to be ready, then calls onRender
 $(window).ready(onRender);
 
+// Subscribes to Journey Builder events
 connection.on('initActivity', initialize);
 connection.on('clickedNext', save);
+// Listener for the schema response from Journey Builder
+connection.on('requestedSchema', handleSchema);
 
+/**
+ * The client-side code that executes when the Custom Activity editor is rendered.
+ */
 function onRender() {
+    // Signal to Journey Builder that the UI is ready
     connection.trigger('ready');
-    fetchDataFromDE();
 
+    // Attach event listener for the template dropdown
     $('#plantillaSelect').on('change', function() {
         var selectedPlantillaName = $(this).val();
         updateUIForSelectedPlantilla(selectedPlantillaName);
     });
 }
 
+/**
+ * This function is called when Journey Builder initializes the activity.
+ * It starts the configuration process by requesting the journey schema.
+ * @param {object} data - The activity's saved configuration.
+ */
+function initialize(data) {
+    if (data) {
+        payload = data;
+    }
+    // Request the journey schema. The response will be handled by the 'requestedSchema' listener.
+    connection.trigger('requestSchema');
+}
+
+/**
+ * Handles the schema response from Journey Builder.
+ * After processing the schema, it proceeds to fetch data from the Data Extension.
+ * @param {object} schemaData - The schema object returned by Journey Builder.
+ */
+function handleSchema(schemaData) {
+    if (schemaData && schemaData.schema) {
+        journeySchemaFields = []; // Clear any previous data
+        schemaData.schema.forEach(function(field) {
+            // Filter out internal SFMC event fields to show only relevant journey data
+            if (field.key && !field.key.startsWith('Event.APIEvent')) {
+                journeySchemaFields.push({
+                    name: field.name,
+                    key: field.key
+                });
+            }
+        });
+    }
+    // Now that we have the schema, we can safely fetch the DE data to build the UI
+    fetchDataFromDE();
+}
+
+/**
+ * Fetches template data from the server and, upon success, restores the saved UI state.
+ */
 function fetchDataFromDE() {
-    var dataUrl = "getData.php"; 
+    var dataUrl = "getData.php";
     $.ajax({
         url: dataUrl,
         method: 'GET',
         success: function(data) {
             deData = data;
             populateDropdown(deData);
+            
+            // With all data loaded, restore the UI to its saved state
+            restoreUiState();
+
+            // Hide the loader and show the configuration form
             $('#loader').addClass('hidden');
             $('#config-form').removeClass('hidden');
         },
@@ -40,6 +91,45 @@ function fetchDataFromDE() {
         }
     });
 }
+
+/**
+ * Restores the UI to its previously saved configuration using the global payload.
+ */
+function restoreUiState() {
+    // Safely access inArguments
+    var inArguments = (payload['arguments'] && payload['arguments'].execute && payload['arguments'].execute.inArguments) ? payload['arguments'].execute.inArguments : [];
+    var args = {};
+
+    inArguments.forEach(arg => {
+        for (let key in arg) {
+            args[key] = arg[key];
+        }
+    });
+
+    if (args.plantillaSeleccionada) {
+        // 1. Set the main dropdown value
+        $('#plantillaSelect').val(args.plantillaSeleccionada);
+
+        // 2. Re-build the dynamic UI for that template
+        updateUIForSelectedPlantilla(args.plantillaSeleccionada);
+
+        // 3. Restore the values for the dynamic variable dropdowns
+        if (args.variablesConfiguradas) {
+            try {
+                var savedVars = JSON.parse(args.variablesConfiguradas);
+                $('.variable-selector').each(function() {
+                    var varId = $(this).attr('id');
+                    if (savedVars[varId]) {
+                        $(this).val(savedVars[varId]);
+                    }
+                });
+            } catch (e) {
+                console.error("Could not parse saved variables", e);
+            }
+        }
+    }
+}
+
 
 function populateDropdown(data) {
     var $select = $('#plantillaSelect');
@@ -83,6 +173,8 @@ function updateUIForSelectedPlantilla(plantillaName) {
                 </div>`;
             var $selectWrapper = $(selectHtml);
             var $select = $selectWrapper.find('.variable-selector');
+            
+            // Populate with fields from the journey schema
             journeySchemaFields.forEach(function(field) {
                 $select.append($('<option>', {
                     value: '{{' + field.key + '}}',
@@ -94,8 +186,9 @@ function updateUIForSelectedPlantilla(plantillaName) {
         $container.removeClass('hidden');
     }
 
-    // *** MEJORA: Solo mostrar medios si el valor es una URL válida ***
     const isUrl = (str) => str && (str.startsWith('http') || str.startsWith('/'));
+
+    $('#videoPreview, #imagenPreview, #documentoPreview').addClass('hidden');
 
     if (isUrl(values.video)) {
         $('#videoLink').attr('href', values.video);
@@ -111,51 +204,10 @@ function updateUIForSelectedPlantilla(plantillaName) {
     }
 }
 
-function initialize(data) {
-    if (data) { payload = data; }
-
-    if (data && data.schema && typeof data.schema === 'object') {
-        const fields = Object.values(data.schema)[0]; 
-        if (Array.isArray(fields)) {
-            fields.forEach(function(field) {
-                if (!field.key.startsWith('Event.APIEvent')) {
-                     journeySchemaFields.push({ name: field.name, key: field.key });
-                }
-            });
-        }
-    }
-
-    var inArguments = payload['arguments'].execute.inArguments || [];
-    var args = {};
-    inArguments.forEach(arg => {
-        for (let key in arg) {
-            args[key] = arg[key];
-        }
-    });
-
-    var checkDataLoaded = setInterval(function() {
-        if (deData.length > 0) {
-            clearInterval(checkDataLoaded);
-            if (args.plantillaSeleccionada) {
-                $('#plantillaSelect').val(args.plantillaSeleccionada).trigger('change');
-                setTimeout(function() {
-                    if (args.variablesConfiguradas) {
-                        try {
-                            var savedVars = JSON.parse(args.variablesConfiguradas);
-                            $('.variable-selector').each(function() {
-                                var varName = $(this).attr('id');
-                                if (savedVars[varName]) {
-                                    $(this).val(savedVars[varName]);
-                                }
-                            });
-                        } catch(e) { console.error("Could not parse saved variables", e); }
-                    }
-                }, 100);
-            }
-        }
-    }, 100);
-}
-
+/**
+ * This function is called when the user clicks "Next" or "Done" in the Journey Builder UI.
+ * It saves the current configuration of the activity.
+ */
 function save() {
     var plantillaSeleccionada = $('#plantillaSelect').val();
     var variablesConfiguradas = {};
