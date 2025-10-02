@@ -1,51 +1,29 @@
 {
   "workflowApiVersion": "1.1",
-  "key": "template-configurator-activity", // AÑADIDO: Una clave única para tu actividad
-  "name": "Configurador de Plantillas",
-  "type": "REST",
-  "lang": {
-    "en-US": { 
-      "name": "Template Configurator",
-      "description": "Select a template and configure its dynamic variables."
-    }
-  },
   "metaData": {
     "icon": "Images/icon.png",
-    "category": "messages" // CORREGIDO: 'messages' en plural como en el ejemplo funcional
+    "category": "Custom"
+  },
+  "type": "REST",
+  "lang": {
+    "en-US": {
+      "name": "Configurador de Plantillas",
+      "description": "Selecciona una plantilla y configura sus variables dinámicas."
+    }
   },
   "arguments": {
     "execute": {
-      "inArguments": [], // CRÍTICO: Debe ser un array vacío. El JS lo llenará.
-      "outArguments": [],
-      "url": "https://deconexion-22a08197f7e5.herokuapp.com/execute.php",
-      "verb": "POST",
-      "useJwt": false, // CORREGIDO: "useJwt" con 'J' minúscula y sin token por ahora
-      "timeout": 10000
+      "inArguments": [],
+      "url": "https://deconexion-22a08197f7e5.herokuapp.com/execute.php"
     }
   },
   "configurationArguments": {
-    "save": {
-      "url": "https://deconexion-22a08197f7e5.herokuapp.com/save.php",
-      "verb": "POST",
-      "useJwt": false // CORREGIDO: "useJwt" con 'J' minúscula
-    },
     "publish": {
-      "url": "https://deconexion-22a08197f7e5.herokuapp.com/publish.php",
-      "verb": "POST",
-      "useJwt": false // CORREGIDO: "useJwt" con 'J' minúscula
+      "url": "https://deconexion-22a08197f7e5.herokuapp.com/publish.php"
     },
     "validate": {
-        "url": "https://deconexion-22a08197f7e5.herokuapp.com/validate.php",
-        "verb": "POST",
-        "useJwt": false // CORREGIDO: "useJwt" con 'J' minúscula
+        "url": "https://deconexion-22a08197f7e5.herokuapp.com/validate.php"
     }
-  },
-  "userInterfaces": {
-      "configModal": {
-          "url": "index.php", // AÑADIDO: Bloque explícito para la UI
-          "height": 600,
-          "width": 800
-      }
   },
   "schema": {
     "arguments": {
@@ -72,8 +50,7 @@
               "direction": "in"
             }
           }
-        ],
-        "outArguments": []
+        ]
       }
     }
   }
