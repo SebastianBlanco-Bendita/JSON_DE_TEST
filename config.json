@@ -13,26 +13,16 @@
   },
   "arguments": {
     "execute": {
-      "inArguments": [
-        { "contactKey": "{{Contact.Key}}" },
-        { "plantillaSeleccionada": "" },
-        { "variablesConfiguradas": "" }
-      ],
+      "inArguments": [],
       "url": "https://deconexion-22a08197f7e5.herokuapp.com/execute.php"
     }
   },
   "configurationArguments": {
-    "save": {
-      "url": "https://deconexion-22a08197f7e5.herokuapp.com/save.php",
-      "useJWT": true
-    },
     "publish": {
-      "url": "https://deconexion-22a08197f7e5.herokuapp.com/publish.php",
-      "useJWT": true
+      "url": "https://deconexion-22a08197f7e5.herokuapp.com/publish.php"
     },
     "validate": {
-        "url": "https://deconexion-22a08197f7e5.herokuapp.com/validate.php",
-        "useJWT": true
+        "url": "https://deconexion-22a08197f7e5.herokuapp.com/validate.php"
     }
   },
   "schema": {
