@@ -4,7 +4,7 @@
   "name": "Configurador de Plantillas",
   "type": "REST",
   "lang": {
-    "en-US": {
+    "en-US": { 
       "name": "Template Configurator",
       "description": "Select a template and configure its dynamic variables."
     }
