@@ -5,8 +5,8 @@ var connection = new Postmonger.Session();
 
 // Global objects
 var payload = {};
-var deData = []; // To store all data from the DE
-var journeySchemaFields = []; // *** NUEVO: Para guardar los campos de la DE de entrada del Journey ***
+var deData = []; 
+var journeySchemaFields = []; 
 
 // Waits for the document to be ready, then calls onRender
 $(window).ready(onRender);
@@ -25,23 +25,6 @@ function onRender() {
     $('#plantillaSelect').on('change', function() {
         var selectedPlantillaName = $(this).val();
         updateUIForSelectedPlantilla(selectedPlantillaName);
-    });
-
-    // *** NUEVO: Evento para manejar la selección de un campo del Journey ***
-    // Usa delegación de eventos para que funcione en elementos creados dinámicamente.
-    $(document).on('change', '.journey-field-selector', function() {
-        var $this = $(this);
-        var selectedValue = $this.val();
-        var targetInputId = $this.data('target-input');
-        
-        if (selectedValue) {
-            // Inserta el campo en el input de texto correspondiente
-            var fullFieldSyntax = '{{' + selectedValue + '}}';
-            $(targetInputId).val(fullFieldSyntax);
-            
-            // Resetea el selector a su estado inicial
-            $this.val('');
-        }
     });
 }
 
@@ -69,7 +52,6 @@ function fetchDataFromDE() {
 
 /**
  * Populates the dropdown with 'Plantilla' names.
- * @param {Array} data - Array of objects from the DE.
  */
 function populateDropdown(data) {
     var $select = $('#plantillaSelect');
@@ -110,28 +92,27 @@ function updateUIForSelectedPlantilla(plantillaName) {
         var $container = $('#variablesContainer');
         $container.append('<label class="form-label">Variables de la Plantilla</label>');
         for (let i = 1; i <= numVariables; i++) {
-            // *** MODIFICADO: Ahora creamos un grupo de input con un campo de texto y un selector ***
-            var inputId = `variable_${i}`;
-            var inputGroupHtml = `
-                <div class="input-group mb-2">
-                    <input type="text" class="form-control variable-input" id="${inputId}" 
-                           placeholder="Variable ${i} o seleccione un campo -->">
-                    <select class="form-select journey-field-selector" data-target-input="#${inputId}">
-                        <option value="">-- Insertar Campo del Journey --</option>
+            // *** MODIFICADO: Ahora solo creamos una lista desplegable por cada variable ***
+            var selectId = `variable_${i}`;
+            var selectHtml = `
+                <div class="mb-2">
+                    <label for="${selectId}" class="form-label small">Variable ${i}</label>
+                    <select class="form-select variable-selector" id="${selectId}">
+                        <option value="">-- Seleccione un Campo del Journey --</option>
                     </select>
                 </div>`;
-            var $inputGroup = $(inputGroupHtml);
+            var $selectWrapper = $(selectHtml);
 
             // Poblar el selector con los campos del esquema del Journey
-            var $select = $inputGroup.find('.journey-field-selector');
+            var $select = $selectWrapper.find('.variable-selector');
             journeySchemaFields.forEach(function(field) {
                 $select.append($('<option>', {
-                    value: field.key,
+                    value: '{{' + field.key + '}}', // Guardamos el valor con el formato de Journey Builder
                     text: field.name
                 }));
             });
 
-            $container.append($inputGroup);
+            $container.append($selectWrapper);
         }
         $container.removeClass('hidden');
     }
@@ -159,17 +140,20 @@ function initialize(data) {
         payload = data;
     }
 
-    // *** NUEVO: Capturamos el esquema de la DE de entrada del Journey ***
-    if (data && data.schema) {
-        data.schema.forEach(function(field) {
-            // Solo agregamos campos que no sean de sistema (opcional, pero buena práctica)
-            if (!field.key.startsWith('Event.APIEvent')) {
-                 journeySchemaFields.push({
-                    name: field.name,
-                    key: field.key
-                });
-            }
-        });
+    // *** CORRECCIÓN: 'data.schema' es un objeto, no un array. Extraemos el array de campos de su interior. ***
+    if (data && data.schema && typeof data.schema === 'object') {
+        // Usualmente, el array de campos es el primer (y único) valor dentro del objeto del esquema
+        const fields = Object.values(data.schema)[0]; 
+        if (Array.isArray(fields)) {
+            fields.forEach(function(field) {
+                if (!field.key.startsWith('Event.APIEvent')) {
+                     journeySchemaFields.push({
+                        name: field.name,
+                        key: field.key
+                    });
+                }
+            });
+        }
     }
 
     var inArguments = payload['arguments'].execute.inArguments || [];
@@ -191,7 +175,8 @@ function initialize(data) {
                     if (args.variablesConfiguradas) {
                         try {
                             var savedVars = JSON.parse(args.variablesConfiguradas);
-                            $('.variable-input').each(function() {
+                            // *** MODIFICADO: Ahora poblamos los <select> en lugar de los <input> ***
+                            $('.variable-selector').each(function() {
                                 var varName = $(this).attr('id');
                                 if (savedVars[varName]) {
                                     $(this).val(savedVars[varName]);
@@ -212,7 +197,8 @@ function save() {
     var plantillaSeleccionada = $('#plantillaSelect').val();
     var variablesConfiguradas = {};
     
-    $('.variable-input').each(function() {
+    // *** MODIFICADO: Ahora leemos el valor de cada lista desplegable '.variable-selector' ***
+    $('.variable-selector').each(function() {
         var id = $(this).attr('id');
         var value = $(this).val();
         variablesConfiguradas[id] = value;
