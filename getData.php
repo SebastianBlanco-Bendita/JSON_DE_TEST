@@ -65,7 +65,7 @@ function getDeData($accessToken, $subdomain, $deKey) {
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $accessToken]);
     
     // SOLUCIÓN FINAL: Forzar el uso de TLSv1.2 para resolver problemas de conexión de red (error 596).
-    curl_setopt($ch, CURLOPT_SSL_VERSION, CURL_SSLVERSION_TLSv1_2);
+    curl_setopt($ch, CURLOPT_SSLVERSION, 6);
 
     $response = curl_exec($ch);
     $err = curl_error($ch);
