@@ -6,6 +6,7 @@ var connection = new Postmonger.Session();
 // Global objects
 var payload = {};
 var deData = []; // To store all data from the DE
+var journeySchemaFields = []; // *** NUEVO: Para guardar los campos de la DE de entrada del Journey ***
 
 // Waits for the document to be ready, then calls onRender
 $(window).ready(onRender);
@@ -24,6 +25,23 @@ function onRender() {
     $('#plantillaSelect').on('change', function() {
         var selectedPlantillaName = $(this).val();
         updateUIForSelectedPlantilla(selectedPlantillaName);
+    });
+
+    // *** NUEVO: Evento para manejar la selección de un campo del Journey ***
+    // Usa delegación de eventos para que funcione en elementos creados dinámicamente.
+    $(document).on('change', '.journey-field-selector', function() {
+        var $this = $(this);
+        var selectedValue = $this.val();
+        var targetInputId = $this.data('target-input');
+        
+        if (selectedValue) {
+            // Inserta el campo en el input de texto correspondiente
+            var fullFieldSyntax = '{{' + selectedValue + '}}';
+            $(targetInputId).val(fullFieldSyntax);
+            
+            // Resetea el selector a su estado inicial
+            $this.val('');
+        }
     });
 }
 
@@ -57,7 +75,6 @@ function populateDropdown(data) {
     var $select = $('#plantillaSelect');
     $select.empty().append('<option value="">-- Seleccione una plantilla --</option>');
     data.forEach(function(row) {
-        // *** CORRECCIÓN #1: 'plantilla' está dentro de 'keys', no de 'values'. ***
         var plantillaName = row.keys.plantilla;
         
         if (plantillaName) {
@@ -71,7 +88,6 @@ function populateDropdown(data) {
 
 /**
  * Updates the UI based on the selected plantilla.
- * @param {string} plantillaName - The name of the selected plantilla.
  */
 function updateUIForSelectedPlantilla(plantillaName) {
     $('#variablesContainer, #mediaContainer .media-preview, #botDisplay').addClass('hidden');
@@ -79,36 +95,47 @@ function updateUIForSelectedPlantilla(plantillaName) {
     
     if (!plantillaName) return;
 
-    // *** CORRECCIÓN #2: Buscar la fila usando 'keys.plantilla'. ***
     var selectedRow = deData.find(row => row.keys.plantilla === plantillaName);
     if (!selectedRow) return;
 
     var values = selectedRow.values;
 
-    // Display Bot name
     if (values.bot) {
         $('#botName').text(values.bot);
         $('#botDisplay').removeClass('hidden');
     }
     
-    // Generate variable input fields
     var numVariables = parseInt(values.variables, 10);
     if (!isNaN(numVariables) && numVariables > 0) {
         var $container = $('#variablesContainer');
         $container.append('<label class="form-label">Variables de la Plantilla</label>');
         for (let i = 1; i <= numVariables; i++) {
-            var inputHtml = `
-                <div class="mb-2">
-                    <input type="text" class="form-control variable-input" id="variable_${i}" 
-                           placeholder="Variable ${i}. Ej: {{Contact.Attribute...}}" 
-                           data-variable-name="Variable ${i}">
+            // *** MODIFICADO: Ahora creamos un grupo de input con un campo de texto y un selector ***
+            var inputId = `variable_${i}`;
+            var inputGroupHtml = `
+                <div class="input-group mb-2">
+                    <input type="text" class="form-control variable-input" id="${inputId}" 
+                           placeholder="Variable ${i} o seleccione un campo -->">
+                    <select class="form-select journey-field-selector" data-target-input="#${inputId}">
+                        <option value="">-- Insertar Campo del Journey --</option>
+                    </select>
                 </div>`;
-            $container.append(inputHtml);
+            var $inputGroup = $(inputGroupHtml);
+
+            // Poblar el selector con los campos del esquema del Journey
+            var $select = $inputGroup.find('.journey-field-selector');
+            journeySchemaFields.forEach(function(field) {
+                $select.append($('<option>', {
+                    value: field.key,
+                    text: field.name
+                }));
+            });
+
+            $container.append($inputGroup);
         }
         $container.removeClass('hidden');
     }
 
-    // Show media if available
     if (values.video) {
         $('#videoLink').attr('href', values.video);
         $('#videoPreview').removeClass('hidden');
@@ -126,11 +153,23 @@ function updateUIForSelectedPlantilla(plantillaName) {
 
 /**
  * Initializes the activity with previously saved data.
- * @param {object} data - The activity's saved configuration.
  */
 function initialize(data) {
     if (data) {
         payload = data;
+    }
+
+    // *** NUEVO: Capturamos el esquema de la DE de entrada del Journey ***
+    if (data && data.schema) {
+        data.schema.forEach(function(field) {
+            // Solo agregamos campos que no sean de sistema (opcional, pero buena práctica)
+            if (!field.key.startsWith('Event.APIEvent')) {
+                 journeySchemaFields.push({
+                    name: field.name,
+                    key: field.key
+                });
+            }
+        });
     }
 
     var inArguments = payload['arguments'].execute.inArguments || [];
