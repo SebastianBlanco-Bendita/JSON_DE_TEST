@@ -31,7 +31,6 @@ function onRender() {
  * Fetches all rows from the "TEST" Data Extension via our backend endpoint.
  */
 function fetchDataFromDE() {
-    // CAMBIO IMPORTANTE: Apuntamos al script PHP en lugar de una ruta de Node.js
     var dataUrl = "getData.php"; 
 
     $.ajax({
@@ -44,7 +43,7 @@ function fetchDataFromDE() {
             $('#config-form').removeClass('hidden');
         },
         error: function(xhr, status, error) {
-            console.error("Error fetching DE data:", error, xhr.responseText);
+            console.error("Error fetching DE data:", status, xhr.responseText);
             $('#loader').html('<p class="text-danger">Error al cargar las plantillas. Verifique la consola.</p>');
         }
     });
@@ -58,7 +57,9 @@ function populateDropdown(data) {
     var $select = $('#plantillaSelect');
     $select.empty().append('<option value="">-- Seleccione una plantilla --</option>');
     data.forEach(function(row) {
-        var plantillaName = row.values.plantilla;
+        // *** CORRECCIÓN #1: 'plantilla' está dentro de 'keys', no de 'values'. ***
+        var plantillaName = row.keys.plantilla;
+        
         if (plantillaName) {
             $select.append($('<option>', {
                 value: plantillaName,
@@ -78,7 +79,8 @@ function updateUIForSelectedPlantilla(plantillaName) {
     
     if (!plantillaName) return;
 
-    var selectedRow = deData.find(row => row.values.plantilla === plantillaName);
+    // *** CORRECCIÓN #2: Buscar la fila usando 'keys.plantilla'. ***
+    var selectedRow = deData.find(row => row.keys.plantilla === plantillaName);
     if (!selectedRow) return;
 
     var values = selectedRow.values;
@@ -139,7 +141,6 @@ function initialize(data) {
         }
     });
 
-    // Wait until DE data is loaded before setting values
     var checkDataLoaded = setInterval(function() {
         if (deData.length > 0) {
             clearInterval(checkDataLoaded);
