@@ -1,0 +1,59 @@
+{
+  "workflowApiVersion": "1.1",
+  "metaData": {
+    "icon": "Images/icon.png",
+    "category": "message"
+  },
+  "type": "REST",
+  "lang": {
+    "en-US": {
+      "name": "Configurador de Plantillas",
+      "description": "Selecciona una plantilla y configura sus variables dinámicas."
+    }
+  },
+  "arguments": {
+    "execute": {
+      "inArguments": [
+        { "contactKey": "{{Contact.Key}}" }
+      ],
+      "url": "https://sfmc-app-node-510a6cb1f80.herokuapp.com/execute"
+    }
+  },
+  "configurationArguments": {
+    "publish": {
+      "url": "https://sfmc-app-node-510a6cb1f80.herokuapp.com/publish"
+    },
+    "validate": {
+        "url": "https://sfmc-app-node-510a6cb1f80.herokuapp.com/validate"
+    }
+  },
+  "schema": {
+    "arguments": {
+      "execute": {
+        "inArguments": [
+          {
+            "contactKey": {
+              "dataType": "String",
+              "isNullable": false,
+              "direction": "in"
+            }
+          },
+          {
+            "plantillaSeleccionada": {
+              "dataType": "String",
+              "isNullable": true,
+              "direction": "in"
+            }
+          },
+          {
+            "variablesConfiguradas": {
+              "dataType": "String",
+              "isNullable": true,
+              "direction": "in"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
