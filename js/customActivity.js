@@ -8,16 +8,11 @@ var payload = {};
 var deData = []; 
 var journeySchemaFields = []; 
 
-// Waits for the document to be ready, then calls onRender
 $(window).ready(onRender);
 
-// Subscribes to Journey Builder events
 connection.on('initActivity', initialize);
 connection.on('clickedNext', save);
 
-/**
- * The client-side code that executes when the Custom Activity editor is rendered.
- */
 function onRender() {
     connection.trigger('ready');
     fetchDataFromDE();
@@ -28,12 +23,8 @@ function onRender() {
     });
 }
 
-/**
- * Fetches all rows from the "TEST" Data Extension via our backend endpoint.
- */
 function fetchDataFromDE() {
     var dataUrl = "getData.php"; 
-
     $.ajax({
         url: dataUrl,
         method: 'GET',
@@ -50,27 +41,17 @@ function fetchDataFromDE() {
     });
 }
 
-/**
- * Populates the dropdown with 'Plantilla' names.
- */
 function populateDropdown(data) {
     var $select = $('#plantillaSelect');
     $select.empty().append('<option value="">-- Seleccione una plantilla --</option>');
     data.forEach(function(row) {
         var plantillaName = row.keys.plantilla;
-        
         if (plantillaName) {
-            $select.append($('<option>', {
-                value: plantillaName,
-                text: plantillaName
-            }));
+            $select.append($('<option>', { value: plantillaName, text: plantillaName }));
         }
     });
 }
 
-/**
- * Updates the UI based on the selected plantilla.
- */
 function updateUIForSelectedPlantilla(plantillaName) {
     $('#variablesContainer, #mediaContainer .media-preview, #botDisplay').addClass('hidden');
     $('#variablesContainer').empty();
@@ -92,7 +73,6 @@ function updateUIForSelectedPlantilla(plantillaName) {
         var $container = $('#variablesContainer');
         $container.append('<label class="form-label">Variables de la Plantilla</label>');
         for (let i = 1; i <= numVariables; i++) {
-            // *** MODIFICADO: Ahora solo creamos una lista desplegable por cada variable ***
             var selectId = `variable_${i}`;
             var selectHtml = `
                 <div class="mb-2">
@@ -102,55 +82,44 @@ function updateUIForSelectedPlantilla(plantillaName) {
                     </select>
                 </div>`;
             var $selectWrapper = $(selectHtml);
-
-            // Poblar el selector con los campos del esquema del Journey
             var $select = $selectWrapper.find('.variable-selector');
             journeySchemaFields.forEach(function(field) {
                 $select.append($('<option>', {
-                    value: '{{' + field.key + '}}', // Guardamos el valor con el formato de Journey Builder
+                    value: '{{' + field.key + '}}',
                     text: field.name
                 }));
             });
-
             $container.append($selectWrapper);
         }
         $container.removeClass('hidden');
     }
 
-    if (values.video) {
+    // *** MEJORA: Solo mostrar medios si el valor es una URL válida ***
+    const isUrl = (str) => str && (str.startsWith('http') || str.startsWith('/'));
+
+    if (isUrl(values.video)) {
         $('#videoLink').attr('href', values.video);
         $('#videoPreview').removeClass('hidden');
     }
-    if (values.imagen) {
+    if (isUrl(values.imagen)) {
         $('#imagenSrc').attr('src', values.imagen);
         $('#imagenPreview').removeClass('hidden');
     }
-    if (values.documento) {
+    if (isUrl(values.documento)) {
         $('#documentoLink').attr('href', values.documento);
         $('#documentoPreview').removeClass('hidden');
     }
 }
 
-
-/**
- * Initializes the activity with previously saved data.
- */
 function initialize(data) {
-    if (data) {
-        payload = data;
-    }
+    if (data) { payload = data; }
 
-    // *** CORRECCIÓN: 'data.schema' es un objeto, no un array. Extraemos el array de campos de su interior. ***
     if (data && data.schema && typeof data.schema === 'object') {
-        // Usualmente, el array de campos es el primer (y único) valor dentro del objeto del esquema
         const fields = Object.values(data.schema)[0]; 
         if (Array.isArray(fields)) {
             fields.forEach(function(field) {
                 if (!field.key.startsWith('Event.APIEvent')) {
-                     journeySchemaFields.push({
-                        name: field.name,
-                        key: field.key
-                    });
+                     journeySchemaFields.push({ name: field.name, key: field.key });
                 }
             });
         }
@@ -167,15 +136,12 @@ function initialize(data) {
     var checkDataLoaded = setInterval(function() {
         if (deData.length > 0) {
             clearInterval(checkDataLoaded);
-
             if (args.plantillaSeleccionada) {
                 $('#plantillaSelect').val(args.plantillaSeleccionada).trigger('change');
-                
                 setTimeout(function() {
                     if (args.variablesConfiguradas) {
                         try {
                             var savedVars = JSON.parse(args.variablesConfiguradas);
-                            // *** MODIFICADO: Ahora poblamos los <select> en lugar de los <input> ***
                             $('.variable-selector').each(function() {
                                 var varName = $(this).attr('id');
                                 if (savedVars[varName]) {
@@ -190,14 +156,10 @@ function initialize(data) {
     }, 100);
 }
 
-/**
- * Saves the current configuration of the activity.
- */
 function save() {
     var plantillaSeleccionada = $('#plantillaSelect').val();
     var variablesConfiguradas = {};
     
-    // *** MODIFICADO: Ahora leemos el valor de cada lista desplegable '.variable-selector' ***
     $('.variable-selector').each(function() {
         var id = $(this).attr('id');
         var value = $(this).val();
