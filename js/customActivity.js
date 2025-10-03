@@ -14,7 +14,6 @@ $(window).ready(onRender);
 // Subscribes to Journey Builder events
 connection.on('initActivity', initialize);
 connection.on('clickedNext', save);
-// Listener for the schema response from Journey Builder
 connection.on('requestedSchema', handleSchema);
 
 /**
@@ -70,7 +69,7 @@ function handleSchema(schemaData) {
  * Fetches template data from the server and, upon success, restores the saved UI state.
  */
 function fetchDataFromDE() {
-    var dataUrl = "getData.php";
+    var dataUrl = "getData.php"; // Asegúrate que esta URL sea correcta
     $.ajax({
         url: dataUrl,
         method: 'GET',
@@ -96,7 +95,6 @@ function fetchDataFromDE() {
  * Restores the UI to its previously saved configuration using the global payload.
  */
 function restoreUiState() {
-    // Safely access inArguments
     var inArguments = (payload['arguments'] && payload['arguments'].execute && payload['arguments'].execute.inArguments) ? payload['arguments'].execute.inArguments : [];
     var args = {};
 
@@ -107,13 +105,9 @@ function restoreUiState() {
     });
 
     if (args.plantillaSeleccionada) {
-        // 1. Set the main dropdown value
         $('#plantillaSelect').val(args.plantillaSeleccionada);
-
-        // 2. Re-build the dynamic UI for that template
         updateUIForSelectedPlantilla(args.plantillaSeleccionada);
 
-        // 3. Restore the values for the dynamic variable dropdowns
         if (args.variablesConfiguradas) {
             try {
                 var savedVars = JSON.parse(args.variablesConfiguradas);
@@ -130,7 +124,10 @@ function restoreUiState() {
     }
 }
 
-
+/**
+ * Populates the main template dropdown with data from the Data Extension.
+ * @param {Array} data - The array of template data.
+ */
 function populateDropdown(data) {
     var $select = $('#plantillaSelect');
     $select.empty().append('<option value="">-- Seleccione una plantilla --</option>');
@@ -142,6 +139,40 @@ function populateDropdown(data) {
     });
 }
 
+/**
+ * Creates and returns the HTML for a variable selector (dropdown),
+ * populated with fields from the journey schema.
+ * @param {string} id - The unique ID for the <select> element.
+ * @param {string} label - The label to be displayed above the dropdown.
+ * @returns {jQuery} A jQuery object representing the dropdown wrapper.
+ */
+function createVariableSelector(id, label) {
+    var selectHtml = `
+        <div class="mb-2">
+            <label for="${id}" class="form-label small">${label}</label>
+            <select class="form-select variable-selector" id="${id}">
+                <option value="">-- Seleccione un Campo del Journey --</option>
+            </select>
+        </div>`;
+    
+    var $selectWrapper = $(selectHtml);
+    var $select = $selectWrapper.find('.variable-selector');
+    
+    journeySchemaFields.forEach(function(field) {
+        $select.append($('<option>', {
+            value: '{{' + field.key + '}}',
+            text: field.name
+        }));
+    });
+
+    return $selectWrapper;
+}
+
+/**
+ * Updates the UI based on the selected template.
+ * This new version reads a JSON structure to dynamically build the fields.
+ * @param {string} plantillaName - The name of the selected template.
+ */
 function updateUIForSelectedPlantilla(plantillaName) {
     $('#variablesContainer, #mediaContainer .media-preview, #botDisplay').addClass('hidden');
     $('#variablesContainer').empty();
@@ -149,7 +180,10 @@ function updateUIForSelectedPlantilla(plantillaName) {
     if (!plantillaName) return;
 
     var selectedRow = deData.find(row => row.keys.plantilla === plantillaName);
-    if (!selectedRow) return;
+    if (!selectedRow) {
+        console.error("No se encontraron datos para la plantilla:", plantillaName);
+        return;
+    }
 
     var values = selectedRow.values;
 
@@ -157,50 +191,64 @@ function updateUIForSelectedPlantilla(plantillaName) {
         $('#botName').text(values.bot);
         $('#botDisplay').removeClass('hidden');
     }
-    
-    var numVariables = parseInt(values.variables, 10);
-    if (!isNaN(numVariables) && numVariables > 0) {
+
+    if (!values.JSON) {
+        console.warn("La plantilla seleccionada no tiene un campo JSON definido en la Data Extension.");
+        return;
+    }
+
+    try {
+        var plantillaJson = JSON.parse(values.JSON);
+        var components = plantillaJson.template.components || [];
         var $container = $('#variablesContainer');
-        $container.append('<label class="form-label">Variables de la Plantilla</label>');
-        for (let i = 1; i <= numVariables; i++) {
-            var selectId = `variable_${i}`;
-            var selectHtml = `
-                <div class="mb-2">
-                    <label for="${selectId}" class="form-label small">Variable ${i}</label>
-                    <select class="form-select variable-selector" id="${selectId}">
-                        <option value="">-- Seleccione un Campo del Journey --</option>
-                    </select>
-                </div>`;
-            var $selectWrapper = $(selectHtml);
-            var $select = $selectWrapper.find('.variable-selector');
-            
-            // Populate with fields from the journey schema
-            journeySchemaFields.forEach(function(field) {
-                $select.append($('<option>', {
-                    value: '{{' + field.key + '}}',
-                    text: field.name
-                }));
-            });
-            $container.append($selectWrapper);
+        var hasDynamicFields = false;
+
+        components.forEach(function(component) {
+            if (component.type === 'header' && component.parameters && component.parameters.length > 0) {
+                var headerParam = component.parameters[0];
+                var mediaType = headerParam.type.toLowerCase();
+                
+                if (headerParam[mediaType] && headerParam[mediaType].link) {
+                    var link = headerParam[mediaType].link;
+                    if (mediaType === 'video') {
+                        $('#videoLink').attr('href', link);
+                        $('#videoPreview').removeClass('hidden');
+                    } else if (mediaType === 'image' || mediaType === 'imagen') {
+                        $('#imagenSrc').attr('src', link);
+                        $('#imagenPreview').removeClass('hidden');
+                    } else if (mediaType === 'document' || mediaType === 'documento') {
+                        $('#documentoLink').attr('href', link);
+                        $('#documentoPreview').removeClass('hidden');
+                    }
+                }
+            }
+
+            if (component.type === 'body' && component.parameters && component.parameters.length > 0) {
+                if (!hasDynamicFields) {
+                    $container.append('<label class="form-label">Variables de la Plantilla</label>');
+                    hasDynamicFields = true;
+                }
+                
+                component.parameters.forEach(function(param, index) {
+                    if (param.type === 'text') {
+                        var paramIndex = index + 1;
+                        var selectId = `body_param_${paramIndex}`;
+                        var label = `Parámetro del Body ${paramIndex}`;
+                        
+                        var $select = createVariableSelector(selectId, label);
+                        $container.append($select);
+                    }
+                });
+            }
+        });
+
+        if (hasDynamicFields) {
+            $container.removeClass('hidden');
         }
-        $container.removeClass('hidden');
-    }
 
-    const isUrl = (str) => str && (str.startsWith('http') || str.startsWith('/'));
-
-    $('#videoPreview, #imagenPreview, #documentoPreview').addClass('hidden');
-
-    if (isUrl(values.video)) {
-        $('#videoLink').attr('href', values.video);
-        $('#videoPreview').removeClass('hidden');
-    }
-    if (isUrl(values.imagen)) {
-        $('#imagenSrc').attr('src', values.imagen);
-        $('#imagenPreview').removeClass('hidden');
-    }
-    if (isUrl(values.documento)) {
-        $('#documentoLink').attr('href', values.documento);
-        $('#documentoPreview').removeClass('hidden');
+    } catch (e) {
+        console.error("Error al parsear el JSON de la plantilla:", e);
+        $('#variablesContainer').html('<p class="text-danger">El JSON de la plantilla es inválido. Revíselo en la Data Extension.</p>').removeClass('hidden');
     }
 }
 
