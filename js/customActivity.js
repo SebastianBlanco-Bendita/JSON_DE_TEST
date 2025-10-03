@@ -192,13 +192,13 @@ function updateUIForSelectedPlantilla(plantillaName) {
         $('#botDisplay').removeClass('hidden');
     }
 
-    if (!values.JSON) {
+    if (!values.json) {
         console.warn("La plantilla seleccionada no tiene un campo JSON definido en la Data Extension.");
         return;
     }
 
     try {
-        var plantillaJson = JSON.parse(values.JSON);
+        var plantillaJson = JSON.parse(values.json);
         var components = plantillaJson.template.components || [];
         var $container = $('#variablesContainer');
         var hasDynamicFields = false;
