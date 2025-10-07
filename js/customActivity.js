@@ -168,7 +168,7 @@ function updateUIForSelectedPlantada(plantillaName) {
         var $container = $('#variablesContainer');
         
         // --- CAMBIO 1: AÑADIR EL SELECTOR PARA EL NÚMERO DE DESTINO ---
-        $container.append(createVariableSelector('to_phone_number', 'Número de Destino (Campo "to")'));
+        $container.append(createVariableSelector('to_phone_number', 'Número de Destino'));
         // -------------------------------------------------------------
 
         var components = plantillaJson.template.components || [];
