@@ -12,6 +12,13 @@
         .media-preview { border: 1px solid #dee2e6; padding: 10px; border-radius: 5px; margin-top: 10px; }
         .media-preview img { max-width: 100%; height: auto; }
         .hidden { display: none; }
+
+        .media-preview img {
+            max-width: 200px; /* Limita el ancho máximo a 200px para que no se vea tan grande */
+            height: auto;     /* Mantiene la proporción de la imagen */
+            display: block;   /* Asegura un comportamiento de bloque consistente */
+            margin-top: 5px;  /* Añade un pequeño espacio sobre la imagen */
+        }
     </style>
 </head>
 <body>
