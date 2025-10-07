@@ -198,7 +198,14 @@ function updateUIForSelectedPlantada(plantillaName) {
  */
 function buildFinalPayload(plantillaName, variables) {
     if (!plantillaName) return null;
+    
     var selectedRow = deData.find(row => row.keys.plantilla === plantillaName);
+    
+    // --- LÍNEA DE DEBUG AÑADIDA ---
+    // Esta línea imprimirá en la consola del navegador los datos exactos de la fila que se encontró.
+    console.log("Datos de la fila seleccionada:", selectedRow);
+    // -----------------------------
+
     if (!selectedRow || !selectedRow.values.json) return null;
 
     try {
@@ -207,16 +214,17 @@ function buildFinalPayload(plantillaName, variables) {
 
         if (!finalPayload.template) return null;
 
-        // --- CAMBIO 2: INSERTAR EL VALOR SELECCIONADO EN EL CAMPO "to" ---
+        // 1. Inserta el número de destino.
         if (variables['to_phone_number']) {
             finalPayload.to = variables['to_phone_number'];
         }
-        // -----------------------------------------------------------------
 
+        // 2. Inserta el nombre de la plantilla.
         finalPayload.template.name = plantillaName;
 
         var components = finalPayload.template.components || [];
         components.forEach(function(component) {
+            // 3. Inserta los links de los medios.
             if (component.type === 'header' && component.parameters && component.parameters.length > 0) {
                 var headerParam = component.parameters[0];
                 var mediaType = headerParam.type.toLowerCase();
@@ -230,6 +238,7 @@ function buildFinalPayload(plantillaName, variables) {
                     headerParam[mediaType].link = mediaColumnValue;
                 }
             }
+            // 4. Inserta las variables del body.
             if (component.type === 'body' && component.parameters) {
                 component.parameters.forEach(function(param, index) {
                     if (param.type === 'text') {
@@ -245,7 +254,6 @@ function buildFinalPayload(plantillaName, variables) {
         return null;
     }
 }
-
 /**
  * Saves the activity configuration.
  */
