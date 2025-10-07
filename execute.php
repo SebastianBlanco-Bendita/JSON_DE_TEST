@@ -49,19 +49,21 @@ if (empty($finalPayloadStr)) {
     exit();
 }
 
-// Note: SFMC has already replaced the {{bindings}} inside finalPayloadStr with the contact's data.
+// --- CAMBIO CLAVE: Envolver el payload en un array para cumplir con el requisito de la API ---
+$apiPayload = '[' . $finalPayloadStr . ']';
+// -----------------------------------------------------------------------------------------
 
 // --- PREPARE AND SEND REQUEST TO EXTERNAL API ---
 $ch = curl_init();
 
 curl_setopt($ch, CURLOPT_URL, $api_endpoint);
 curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, $finalPayloadStr);
+curl_setopt($ch, CURLOPT_POSTFIELDS, $apiPayload); // Usamos la nueva variable
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
     'Content-Type: application/json',
     'Authorization: Bearer ' . $api_token,
-    'Content-Length: ' . strlen($finalPayloadStr)
+    'Content-Length: ' . strlen($apiPayload) // Y actualizamos la longitud
 ]);
 
 $response = curl_exec($ch);
@@ -87,7 +89,7 @@ if ($http_code >= 400) {
         'success' => false,
         'error' => $errorMsg,
         'api_status' => $http_code,
-        'api_response' => json_decode($response) // Attempt to decode API response for clarity
+        'api_response' => json_decode($response)
     ]);
     exit();
 }
