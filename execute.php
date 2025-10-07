@@ -44,10 +44,9 @@ if (empty($finalPayloadStr)) {
     exit();
 }
 
-// --- TRANSFORMACIÓN CLAVE: Envolver el objeto en un array para la API ---
 $apiPayload = '[' . $finalPayloadStr . ']';
-// ------------------------------------------------------------------------
 
+// --- PREPARE AND SEND REQUEST TO EXTERNAL API ---
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $api_endpoint);
 curl_setopt($ch, CURLOPT_POST, true);
@@ -55,7 +54,8 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, $apiPayload);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
     'Content-Type: application/json',
-    'Authorization: Bearer ' . $api_token,
+    // CAMBIO FINAL: Se eliminó la palabra "Bearer " del encabezado de autorización.
+    'Authorization: ' . $api_token,
     'Content-Length: ' . strlen($apiPayload)
 ]);
 
@@ -64,6 +64,7 @@ $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 $curl_error = curl_error($ch);
 curl_close($ch);
 
+// --- HANDLE EXTERNAL API RESPONSE ---
 if ($curl_error) {
     http_response_code(500);
     $errorMsg = 'cURL Error while contacting the external API: ' . $curl_error;
