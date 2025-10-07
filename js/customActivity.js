@@ -169,13 +169,15 @@ function createVariableSelector(id, label) {
 }
 
 /**
+ * ===================================================================================
+ * == VERSIÓN FINAL - NO MODIFICAR MÁS ===============================================
+ * ===================================================================================
  * Updates the UI based on the selected template.
- * This new version reads a JSON structure to dynamically build the fields.
+ * This version is robust: it trims whitespace and handles both objects and arrays from the DE.
  * @param {string} plantillaName - The name of the selected template.
  */
 function updateUIForSelectedPlantilla(plantillaName) {
     $('#variablesContainer, #mediaContainer .media-preview, #botDisplay').addClass('hidden');
-    // Clear previous media previews
     $('#videoPreview, #imagenPreview, #documentoPreview').addClass('hidden');
     $('#variablesContainer').empty();
     
@@ -200,7 +202,18 @@ function updateUIForSelectedPlantilla(plantillaName) {
     }
 
     try {
-        var plantillaJson = JSON.parse(values.json);
+        // --- MEJORA CLAVE: Limpiar el string JSON antes de analizarlo ---
+        // Esto elimina espacios en blanco, saltos de línea y otros caracteres problemáticos.
+        var jsonStringLimpio = values.json.trim();
+        var parsedJson = JSON.parse(jsonStringLimpio);
+        
+        // Se asegura de que siempre trabajemos con un objeto, incluso si la DE tiene un array.
+        var plantillaJson = Array.isArray(parsedJson) ? parsedJson[0] : parsedJson;
+
+        if (!plantillaJson || !plantillaJson.template) {
+            throw new Error("El objeto JSON no tiene la estructura esperada (falta la clave 'template').");
+        }
+
         var components = plantillaJson.template.components || [];
         var $container = $('#variablesContainer');
         var hasDynamicFields = false;
@@ -208,6 +221,7 @@ function updateUIForSelectedPlantilla(plantillaName) {
         components.forEach(function(component) {
             if (component.type === 'header' && component.parameters && component.parameters.length > 0) {
                 var headerParam = component.parameters[0];
+                if (!headerParam.type) return;
                 var mediaType = headerParam.type.toLowerCase();
                 
                 if (headerParam[mediaType] && headerParam[mediaType].link) {
@@ -236,7 +250,6 @@ function updateUIForSelectedPlantilla(plantillaName) {
                         var paramIndex = index + 1;
                         var selectId = `body_param_${paramIndex}`;
                         var label = `Parámetro del Body ${paramIndex}`;
-                        
                         var $select = createVariableSelector(selectId, label);
                         $container.append($select);
                     }
@@ -250,6 +263,7 @@ function updateUIForSelectedPlantilla(plantillaName) {
 
     } catch (e) {
         console.error("Error al parsear el JSON de la plantilla:", e);
+        console.error("JSON problemático:", values.json); // Log para ver el JSON exacto que falla
         $('#variablesContainer').html('<p class="text-danger">El JSON de la plantilla es inválido. Revíselo en la Data Extension.</p>').removeClass('hidden');
     }
 }
