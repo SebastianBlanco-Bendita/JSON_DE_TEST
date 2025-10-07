@@ -198,13 +198,10 @@ function updateUIForSelectedPlantada(plantillaName) {
  */
 function buildFinalPayload(plantillaName, variables) {
     if (!plantillaName) return null;
-    
     var selectedRow = deData.find(row => row.keys.plantilla === plantillaName);
     
-    // --- LÍNEA DE DEBUG AÑADIDA ---
-    // Esta línea imprimirá en la consola del navegador los datos exactos de la fila que se encontró.
+    // Debugging line, keep it for now.
     console.log("Datos de la fila seleccionada:", selectedRow);
-    // -----------------------------
 
     if (!selectedRow || !selectedRow.values.json) return null;
 
@@ -214,32 +211,30 @@ function buildFinalPayload(plantillaName, variables) {
 
         if (!finalPayload.template) return null;
 
-        // 1. Inserta el número de destino.
         if (variables['to_phone_number']) {
             finalPayload.to = variables['to_phone_number'];
         }
 
-        // 2. Inserta el nombre de la plantilla.
         finalPayload.template.name = plantillaName;
 
         var components = finalPayload.template.components || [];
         components.forEach(function(component) {
-            // 3. Inserta los links de los medios.
             if (component.type === 'header' && component.parameters && component.parameters.length > 0) {
                 var headerParam = component.parameters[0];
                 var mediaType = headerParam.type.toLowerCase();
                 var mediaColumnValue = null;
 
-                if (mediaType === 'image' || mediaType === 'imagen') mediaColumnValue = selectedRow.values.Imagen;
-                else if (mediaType === 'video') mediaColumnValue = selectedRow.values.Video;
-                else if (mediaType === 'document' || mediaType === 'documento') mediaColumnValue = selectedRow.values.Documento;
+                // --- CAMBIO CLAVE: BUSCAR NOMBRES DE COLUMNA EN MINÚSCULAS ---
+                if (mediaType === 'image' || mediaType === 'imagen') mediaColumnValue = selectedRow.values.imagen; // Cambiado a minúscula
+                else if (mediaType === 'video') mediaColumnValue = selectedRow.values.video; // Cambiado a minúscula
+                else if (mediaType === 'document' || mediaType === 'documento') mediaColumnValue = selectedRow.values.documento; // Cambiado a minúscula
                 
                 if (mediaColumnValue && headerParam[mediaType]) {
                     headerParam[mediaType].link = mediaColumnValue;
                 }
             }
-            // 4. Inserta las variables del body.
             if (component.type === 'body' && component.parameters) {
+                // ... (el resto de la función sigue igual)
                 component.parameters.forEach(function(param, index) {
                     if (param.type === 'text') {
                         var selectedValue = variables[`body_param_${index + 1}`];
