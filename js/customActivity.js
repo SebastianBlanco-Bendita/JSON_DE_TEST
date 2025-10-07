@@ -175,6 +175,8 @@ function createVariableSelector(id, label) {
  */
 function updateUIForSelectedPlantilla(plantillaName) {
     $('#variablesContainer, #mediaContainer .media-preview, #botDisplay').addClass('hidden');
+    // Clear previous media previews
+    $('#videoPreview, #imagenPreview, #documentoPreview').addClass('hidden');
     $('#variablesContainer').empty();
     
     if (!plantillaName) return;
@@ -253,6 +255,48 @@ function updateUIForSelectedPlantilla(plantillaName) {
 }
 
 /**
+ * Builds the final JSON payload by injecting the user's variable selections
+ * into the base template JSON.
+ * @param {string} plantillaName - The name of the selected template.
+ * @param {object} variables - The configured variables from the UI.
+ * @returns {object|null} The final JSON object payload, or null if an error occurs.
+ */
+function buildFinalPayload(plantillaName, variables) {
+    if (!plantillaName) return null;
+
+    var selectedRow = deData.find(row => row.keys.plantilla === plantillaName);
+    if (!selectedRow || !selectedRow.values.json) {
+        console.error("Could not find template data or JSON for:", plantillaName);
+        return null;
+    }
+
+    try {
+        var finalPayload = JSON.parse(selectedRow.values.json);
+        var components = finalPayload.template.components || [];
+
+        components.forEach(function(component) {
+            if (component.type === 'body' && component.parameters) {
+                component.parameters.forEach(function(param, index) {
+                    if (param.type === 'text') {
+                        var paramId = `body_param_${index + 1}`;
+                        var selectedValue = variables[paramId];
+                        // Replace the placeholder text with the selected journey variable
+                        if (selectedValue) {
+                            param.text = selectedValue;
+                        }
+                    }
+                });
+            }
+        });
+        
+        return finalPayload;
+    } catch (e) {
+        console.error("Error building final payload:", e);
+        return null;
+    }
+}
+
+/**
  * This function is called when the user clicks "Next" or "Done" in the Journey Builder UI.
  * It saves the current configuration of the activity.
  */
@@ -266,14 +310,25 @@ function save() {
         variablesConfiguradas[id] = value;
     });
 
+    // Build the final JSON payload to be sent to the execute endpoint
+    var finalPayloadObject = buildFinalPayload(plantillaSeleccionada, variablesConfiguradas);
+    if (!finalPayloadObject) {
+        console.error("Failed to generate final payload. Activity will not be saved correctly.");
+        // Optionally, prevent saving by not calling updateActivity or showing a UI error
+        return; 
+    }
+    
+    // The inArguments are the data that will be passed to your execute.php for each contact.
     payload['arguments'].execute.inArguments = [
         { "contactKey": "{{Contact.Key}}" },
-        { "plantillaSeleccionada": plantillaSeleccionada },
-        { "variablesConfiguradas": JSON.stringify(variablesConfiguradas) }
+        { "plantillaSeleccionada": plantillaSeleccionada }, // Kept for reference/debugging
+        { "variablesConfiguradas": JSON.stringify(variablesConfiguradas) }, // Kept for reference/debugging
+        { "finalPayload": JSON.stringify(finalPayloadObject) } // The payload to send to the external API
     ];
     
     payload['metaData'] = payload['metaData'] || {};
     payload['metaData'].isConfigured = true;
 
+    console.log('Saving payload:', JSON.stringify(payload, null, 2));
     connection.trigger('updateActivity', payload);
 }
