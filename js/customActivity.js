@@ -200,7 +200,7 @@ function buildFinalPayload(plantillaName, variables) {
     if (!plantillaName) return null;
     var selectedRow = deData.find(row => row.keys.plantilla === plantillaName);
     
-    // Debugging line, keep it for now.
+    // Esta línea ya no es necesaria, pero no hace daño dejarla.
     console.log("Datos de la fila seleccionada:", selectedRow);
 
     if (!selectedRow || !selectedRow.values.json) return null;
@@ -224,17 +224,17 @@ function buildFinalPayload(plantillaName, variables) {
                 var mediaType = headerParam.type.toLowerCase();
                 var mediaColumnValue = null;
 
-                // --- CAMBIO CLAVE: BUSCAR NOMBRES DE COLUMNA EN MINÚSCULAS ---
-                if (mediaType === 'image' || mediaType === 'imagen') mediaColumnValue = selectedRow.values.imagen; // Cambiado a minúscula
-                else if (mediaType === 'video') mediaColumnValue = selectedRow.values.video; // Cambiado a minúscula
-                else if (mediaType === 'document' || mediaType === 'documento') mediaColumnValue = selectedRow.values.documento; // Cambiado a minúscula
+                // --- ESTA ES LA LÓGICA CORRECTA Y FINAL ---
+                // Se buscan los nombres de columna en MINÚSCULAS, tal como los devuelve la API.
+                if (mediaType === 'image' || mediaType === 'imagen') mediaColumnValue = selectedRow.values.imagen;
+                else if (mediaType === 'video') mediaColumnValue = selectedRow.values.video;
+                else if (mediaType === 'document' || mediaType === 'documento') mediaColumnValue = selectedRow.values.documento;
                 
                 if (mediaColumnValue && headerParam[mediaType]) {
                     headerParam[mediaType].link = mediaColumnValue;
                 }
             }
             if (component.type === 'body' && component.parameters) {
-                // ... (el resto de la función sigue igual)
                 component.parameters.forEach(function(param, index) {
                     if (param.type === 'text') {
                         var selectedValue = variables[`body_param_${index + 1}`];
