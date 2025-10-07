@@ -4,6 +4,14 @@ header('Content-Type: application/json');
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 
+// --- OBTENER EL CUERPO DE LA PETICIÓN ---
+$requestBody = file_get_contents('php://input');
+
+// --- ¡LÍNEA DE DEBUG AÑADIDA! ---
+// Esta línea escribe el JSON exacto que envía Journey Builder a tus logs de Heroku.
+error_log("--- INCOMING JB PAYLOAD --- \n" . $requestBody . "\n--------------------------\n");
+// ------------------------------------
+
 $api_endpoint = getenv('API_ENDPOINT');
 $api_token = getenv('API_TOKEN');
 
@@ -15,9 +23,8 @@ if (empty($api_endpoint) || empty($api_token)) {
     exit();
 }
 
-$requestBody = file_get_contents('php://input');
 $decodedBody = json_decode($requestBody, true);
-
+// ... el resto del código sigue igual ...
 if (json_last_error() !== JSON_ERROR_NONE) {
     http_response_code(400);
     $errorMsg = 'Invalid JSON received from Journey Builder.';
@@ -46,7 +53,6 @@ if (empty($finalPayloadStr)) {
 
 $apiPayload = '[' . $finalPayloadStr . ']';
 
-// --- PREPARE AND SEND REQUEST TO EXTERNAL API ---
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $api_endpoint);
 curl_setopt($ch, CURLOPT_POST, true);
@@ -54,7 +60,6 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, $apiPayload);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
     'Content-Type: application/json',
-    // CAMBIO FINAL: Se eliminó la palabra "Bearer " del encabezado de autorización.
     'Authorization: ' . $api_token,
     'Content-Length: ' . strlen($apiPayload)
 ]);
@@ -64,7 +69,6 @@ $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 $curl_error = curl_error($ch);
 curl_close($ch);
 
-// --- HANDLE EXTERNAL API RESPONSE ---
 if ($curl_error) {
     http_response_code(500);
     $errorMsg = 'cURL Error while contacting the external API: ' . $curl_error;
