@@ -259,6 +259,12 @@ function save() {
         variablesConfiguradas[$(this).attr('id')] = $(this).val();
     });
 
+    // --- LÓGICA AÑADIDA ---
+    // Buscamos la fila seleccionada para obtener el nombre del bot.
+    var selectedRow = deData.find(row => row.keys.plantilla === plantillaSeleccionada);
+    var botSeleccionado = selectedRow ? selectedRow.values.bot : '';
+    // ----------------------
+
     var finalPayloadObject = buildFinalPayload(plantillaSeleccionada, variablesConfiguradas);
     if (!finalPayloadObject) return;
 
@@ -270,7 +276,10 @@ function save() {
         "plantillaSeleccionada": plantillaSeleccionada
     }, {
         "variablesConfiguradas": JSON.stringify(variablesConfiguradas)
+    }, { // --- DATO AÑADIDO ---
+        "botSeleccionado": botSeleccionado
     }];
+    
     payload['metaData'] = payload['metaData'] || {};
     payload['metaData'].isConfigured = true;
 
