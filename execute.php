@@ -6,55 +6,67 @@ ini_set('log_errors', 1);
 
 // --- OBTENER EL CUERPO DE LA PETICIÓN ---
 $requestBody = file_get_contents('php://input');
-
-// --- ¡LÍNEA DE DEBUG AÑADIDA! ---
-// Esta línea escribe el JSON exacto que envía Journey Builder a tus logs de Heroku.
 error_log("--- INCOMING JB PAYLOAD --- \n" . $requestBody . "\n--------------------------\n");
-// ------------------------------------
 
-$api_endpoint = getenv('API_ENDPOINT');
+// --- OBTENER CREDENCIALES ---
 $api_token = getenv('API_TOKEN');
+// Lee ambos endpoints
+$endpoint_asesora = getenv('API_ENDPOINT');
+$endpoint_comunica = getenv('API_ENDPOINT_COMUNICA');
 
-if (empty($api_endpoint) || empty($api_token)) {
-    http_response_code(500);
-    $errorMsg = 'Server configuration error: API_ENDPOINT or API_TOKEN environment variables are not set.';
-    error_log($errorMsg);
-    echo json_encode(['success' => false, 'error' => $errorMsg]);
-    exit();
-}
 
+// --- PROCESAR DATOS DE ENTRADA ---
 $decodedBody = json_decode($requestBody, true);
-// ... el resto del código sigue igual ...
 if (json_last_error() !== JSON_ERROR_NONE) {
     http_response_code(400);
-    $errorMsg = 'Invalid JSON received from Journey Builder.';
-    error_log($errorMsg . ' Body: ' . $requestBody);
-    echo json_encode(['success' => false, 'error' => $errorMsg]);
+    echo json_encode(['success' => false, 'error' => 'Invalid JSON received from Journey Builder.']);
     exit();
 }
 
+// Extraer finalPayload y botSeleccionado
 $finalPayloadStr = '';
+$botSeleccionado = ''; // Por defecto, vacío
 if (isset($decodedBody['inArguments']) && is_array($decodedBody['inArguments'])) {
     foreach ($decodedBody['inArguments'] as $arg) {
         if (isset($arg['finalPayload'])) {
             $finalPayloadStr = $arg['finalPayload'];
-            break;
+        }
+        if (isset($arg['botSeleccionado'])) {
+            $botSeleccionado = $arg['botSeleccionado'];
         }
     }
 }
 
 if (empty($finalPayloadStr)) {
     http_response_code(400);
-    $errorMsg = 'Required "finalPayload" was not found in the inArguments from Journey Builder.';
-    error_log($errorMsg . ' Full Request: ' . $requestBody);
-    echo json_encode(['success' => false, 'error' => $errorMsg]);
+    echo json_encode(['success' => false, 'error' => 'Required "finalPayload" was not found in the inArguments.']);
     exit();
 }
 
+// --- LÓGICA DE DECISIÓN DEL ENDPOINT ---
+$endpoint_a_usar = '';
+if ($botSeleccionado === 'Cami comunica' && !empty($endpoint_comunica)) {
+    $endpoint_a_usar = $endpoint_comunica;
+    error_log("Bot 'Cami comunica' detectado. Usando API_ENDPOINT_COMUNICA.");
+} else {
+    $endpoint_a_usar = $endpoint_asesora;
+    error_log("Bot por defecto o 'Cami asesora' detectado. Usando API_ENDPOINT.");
+}
+
+if (empty($endpoint_a_usar)) {
+    http_response_code(500);
+    $errorMsg = 'Server configuration error: No API endpoint could be determined.';
+    error_log($errorMsg);
+    echo json_encode(['success' => false, 'error' => $errorMsg]);
+    exit();
+}
+// ------------------------------------------
+
 $apiPayload = '[' . $finalPayloadStr . ']';
 
+// --- ENVIAR PETICIÓN A LA API EXTERNA ---
 $ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, $api_endpoint);
+curl_setopt($ch, CURLOPT_URL, $endpoint_a_usar); // Usa la variable dinámica
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, $apiPayload);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -65,27 +77,24 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, [
 ]);
 
 $response = curl_exec($ch);
+// ... el resto del código de manejo de respuesta sigue igual ...
 $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 $curl_error = curl_error($ch);
 curl_close($ch);
 
 if ($curl_error) {
     http_response_code(500);
-    $errorMsg = 'cURL Error while contacting the external API: ' . $curl_error;
-    error_log($errorMsg);
-    echo json_encode(['success' => false, 'error' => $errorMsg]);
+    error_log('cURL Error: ' . $curl_error);
+    echo json_encode(['success' => false, 'error' => 'cURL Error while contacting the external API: ' . $curl_error]);
     exit();
 }
 
 if ($http_code >= 400) {
     http_response_code(502);
-    $errorMsg = "The external API returned an error (HTTP Status: {$http_code}).";
-    error_log($errorMsg . " API Response: " . $response);
+    error_log("External API Error (HTTP {$http_code}): " . $response);
     echo json_encode([
-        'success' => false,
-        'error' => $errorMsg,
-        'api_status' => $http_code,
-        'api_response' => json_decode($response)
+        'success' => false, 'error' => "The external API returned an error (HTTP Status: {$http_code}).",
+        'api_status' => $http_code, 'api_response' => json_decode($response)
     ]);
     exit();
 }
