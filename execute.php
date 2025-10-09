@@ -10,10 +10,8 @@ error_log("--- INCOMING JB PAYLOAD --- \n" . $requestBody . "\n-----------------
 
 // --- OBTENER CREDENCIALES ---
 $api_token = getenv('API_TOKEN');
-// Lee ambos endpoints
-$endpoint_asesora = getenv('API_ENDPOINT');
-$endpoint_comunica = getenv('API_ENDPOINT_COMUNICA');
-
+$endpoint_directora = getenv('API_ENDPOINT_DIRECTORA');
+$endpoint_asesora = getenv('API_ENDPOINT_ASESORA');
 
 // --- PROCESAR DATOS DE ENTRADA ---
 $decodedBody = json_decode($requestBody, true);
@@ -23,9 +21,8 @@ if (json_last_error() !== JSON_ERROR_NONE) {
     exit();
 }
 
-// Extraer finalPayload y botSeleccionado
 $finalPayloadStr = '';
-$botSeleccionado = ''; // Por defecto, vacío
+$botSeleccionado = '';
 if (isset($decodedBody['inArguments']) && is_array($decodedBody['inArguments'])) {
     foreach ($decodedBody['inArguments'] as $arg) {
         if (isset($arg['finalPayload'])) {
@@ -45,18 +42,22 @@ if (empty($finalPayloadStr)) {
 
 // --- LÓGICA DE DECISIÓN DEL ENDPOINT ---
 $endpoint_a_usar = '';
-if ($botSeleccionado === 'Cami comunica' && !empty($endpoint_comunica)) {
-    $endpoint_a_usar = $endpoint_comunica;
-    error_log("Bot 'Cami comunica' detectado. Usando API_ENDPOINT_COMUNICA.");
+$botSeleccionadoLower = strtolower(trim($botSeleccionado));
+
+if ($botSeleccionadoLower === 'cami directora' && !empty($endpoint_directora)) {
+    $endpoint_a_usar = $endpoint_directora;
+    // --- LOG ACTUALIZADO ---
+    error_log("Bot 'cami directora' detectado. Usando endpoint: " . $endpoint_a_usar);
 } else {
     $endpoint_a_usar = $endpoint_asesora;
-    error_log("Bot por defecto o 'Cami asesora' detectado. Usando API_ENDPOINT.");
+    // --- LOG ACTUALIZADO ---
+    error_log("Bot por defecto ('" . $botSeleccionado . "') detectado. Usando endpoint: " . $endpoint_a_usar);
 }
 
 if (empty($endpoint_a_usar)) {
     http_response_code(500);
-    $errorMsg = 'Server configuration error: No API endpoint could be determined.';
-    error_log($errorMsg);
+    $errorMsg = 'Server configuration error: No API endpoint could be determined for the selected bot.';
+    error_log($errorMsg . " Bot detectado: " . $botSeleccionado);
     echo json_encode(['success' => false, 'error' => $errorMsg]);
     exit();
 }
@@ -66,7 +67,8 @@ $apiPayload = '[' . $finalPayloadStr . ']';
 
 // --- ENVIAR PETICIÓN A LA API EXTERNA ---
 $ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, $endpoint_a_usar); // Usa la variable dinámica
+curl_setopt($ch, CURLOPT_URL, $endpoint_a_usar);
+// ... (el resto del código no cambia)
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, $apiPayload);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -77,7 +79,6 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, [
 ]);
 
 $response = curl_exec($ch);
-// ... el resto del código de manejo de respuesta sigue igual ...
 $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 $curl_error = curl_error($ch);
 curl_close($ch);
