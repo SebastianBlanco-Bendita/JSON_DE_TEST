@@ -7,22 +7,22 @@
   "type": "REST",
   "lang": {
     "en-US": {
-      "name": "Configurador de Plantillas",
+      "name": "Plantillas JSONs",
       "description": "Selecciona una plantilla y configura sus variables dinámicas."
     }
   },
   "arguments": {
     "execute": {
       "inArguments": [],
-      "url": "https://deconexion-22a08197f7e5.herokuapp.com/execute.php"
+      "url": "https://custom-activity-json-ec73ba57343c.herokuapp.com/execute.php"
     }
   },
   "configurationArguments": {
     "publish": {
-      "url": "https://deconexion-22a08197f7e5.herokuapp.com/publish.php"
+      "url": "https://custom-activity-json-ec73ba57343c.herokuapp.com/publish.php"
     },
     "validate": {
-      "url": "https://deconexion-22a08197f7e5.herokuapp.com/validate.php"
+      "url": "https://custom-activity-json-ec73ba57343c.herokuapp.com/validate.php"
     }
   },
   "schema": {
